@@ -48,11 +48,18 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-    if(cpuid() == 0){
+    if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
+
+       if(proc) {
+        if(proc->state == RUNNING)
+          proc->rtime++;
+        else if(proc->state == SLEEPING)
+          proc->iotime++;
+      }
     }
     lapiceoi();
     break;
