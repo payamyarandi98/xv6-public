@@ -95,3 +95,20 @@ sys_pinfo(void)
 {
   return pinfo();
 }
+
+int
+sys_waitx(void)
+{
+  int* wtime;
+  int* rtime;
+
+  return waitx(wtime, rtime);
+}
+
+int
+sys_set_priority
+{
+  int pid, value;
+
+  return set_priority(pid, value);
+}
