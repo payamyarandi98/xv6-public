@@ -66,7 +66,7 @@ myproc(void) {
 }
 
 //PAGEBREAK: 32
-// Look in the process table for an UNUSED proc.
+// Look in the p table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
 // state required to run in the kernel.
 // Otherwise return 0.
@@ -116,7 +116,7 @@ found:
 }
 
 //PAGEBREAK: 32
-// Set up first user process.
+// Set up first user p.
 void
 userinit(void)
 {
@@ -143,7 +143,7 @@ userinit(void)
   p->cwd = namei("/");
 
   // this assignment to p->state lets other cores
-  // run this process. the acquire forces the above
+  // run this p. the acquire forces the above
   // writes to be visible, and the lock is also needed
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
@@ -153,7 +153,7 @@ userinit(void)
   release(&ptable.lock);
 }
 
-// Grow current process's memory by n bytes.
+// Grow current p's memory by n bytes.
 // Return 0 on success, -1 on failure.
 int
 growproc(int n)
@@ -174,7 +174,7 @@ growproc(int n)
   return 0;
 }
 
-// Create a new process copying p as the parent.
+// Create a new p copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
@@ -184,12 +184,12 @@ fork(void)
   struct proc *np;
   struct proc *curproc = myproc();
 
-  // Allocate process.
+  // Allocate p.
   if((np = allocproc()) == 0){
     return -1;
   }
 
-  // Copy process state from proc.
+  // Copy p state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
@@ -221,8 +221,8 @@ fork(void)
   return pid;
 }
 
-// Exit the current process.  Does not return.
-// An exited process remains in the zombie state
+// Exit the current p.  Does not return.
+// An exited p remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void
 exit(void)
@@ -267,8 +267,8 @@ exit(void)
   panic("zombie exit");
 }
 
-// Wait for a child process to exit and return its pid.
-// Return -1 if this process has no children.
+// Wait for a child p to exit and return its pid.
+// Return -1 if this p has no children.
 int
 wait(void)
 {
@@ -312,12 +312,12 @@ wait(void)
 }
 
 //PAGEBREAK: 42
-// Per-CPU process scheduler.
+// Per-CPU p scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
+//  - choose a p to run
+//  - swtch to start running that p
+//  - eventually that p transfers control
 //      via swtch back to the scheduler.
 void
 scheduler(void)
@@ -330,13 +330,13 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
+    // Loop over p table looking for p to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
-      // Switch to chosen process.  It is the process's job
+      // Switch to chosen p.  It is the p's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
@@ -361,7 +361,7 @@ scheduler(void)
 // kernel thread, not this CPU. It should
 // be proc->intena and proc->ncli, but that would
 // break in the few places where a lock is held but
-// there's no process.
+// there's no p.
 void
 sched(void)
 {
@@ -402,7 +402,7 @@ forkret(void)
 
   if (first) {
     // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot
+    // of a regular p (e.g., they call sleep), and thus cannot
     // be run from main().
     first = 0;
     iinit(ROOTDEV);
@@ -473,7 +473,7 @@ wakeup(void *chan)
   release(&ptable.lock);
 }
 
-// Kill the process with the given pid.
+// Kill the p with the given pid.
 // Process won't exit until it returns
 // to user space (see trap in trap.c).
 int
@@ -485,7 +485,7 @@ kill(int pid)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->killed = 1;
-      // Wake process from sleep if necessary.
+      // Wake p from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
       release(&ptable.lock);
@@ -497,7 +497,7 @@ kill(int pid)
 }
 
 //PAGEBREAK: 36
-// Print a process listing to console.  For debugging.
+// Print a p listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
 void
@@ -579,4 +579,48 @@ pinfo()
   }
 
   return 22;
+}
+
+int
+waitx(int *wtime, int *rtime)
+{
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        *wtime = process->etime - process->stime - process->rtime - process->iotime;
+        *rtime = process->rtime;
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
 }
