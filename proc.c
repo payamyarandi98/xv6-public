@@ -353,7 +353,7 @@ scheduler(void)
           continue;
         
         if (temp->priority > pt->priority)
-          temp = p1;
+          temp = pt;
       }
       p = temp;
 
