@@ -345,6 +345,18 @@ scheduler(void)
       if(p->state != RUNNABLE)
         continue;
 
+      struct proc *temp = p;
+      struct proc *pt;
+      for (pt = ptable.proc; pt < &ptable.proc[NPROC]; pt++)
+      {
+        if (pt->state != RUNNABLE)
+          continue;
+        
+        if (temp->priority > pt->priority)
+          temp = p1;
+      }
+      p = temp;
+
       // Switch to chosen p.  It is the p's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
