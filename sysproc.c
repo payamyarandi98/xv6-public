@@ -102,13 +102,23 @@ sys_waitx(void)
   int* wtime;
   int* rtime;
 
+  if(argptr(0, (char **)&wtime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(1, (char **)&rtime, sizeof(int)) < 0)
+    return -1;
+
   return waitx(wtime, rtime);
 }
 
 int
-sys_set_priority
+sys_set_priority(void)
 {
   int pid, value;
+
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1,&value) < 0)
+    return -1;
 
   return set_priority(pid, value);
 }

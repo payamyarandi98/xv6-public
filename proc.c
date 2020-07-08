@@ -598,8 +598,8 @@ waitx(int *wtime, int *rtime)
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
-        *wtime = process->etime - process->stime - process->rtime - process->iotime;
-        *rtime = process->rtime;
+        *wtime = p->etime - p->stime - p->rtime - p->iotime;
+        *rtime = p->rtime;
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
@@ -623,4 +623,10 @@ waitx(int *wtime, int *rtime)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
+}
+
+int
+set_priority(int pid, int value)
+{
+  return 24;
 }

@@ -131,7 +131,7 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_pinfo]   sys_pinfo,
 [SYS_waitx]   sys_waitx,
-[sys_set_priority]   sys_set_priority,
+[SYS_set_priority]   sys_set_priority,
 };
 
 void
