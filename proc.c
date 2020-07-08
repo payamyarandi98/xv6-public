@@ -112,6 +112,13 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  p->stime = ticks;
+  p->etime = 0;
+  p->iotime = 0;
+  p->rtime = 0;
+
+  p->priority = 60;
+
   return p;
 }
 
@@ -260,6 +267,8 @@ exit(void)
         wakeup1(initproc);
     }
   }
+
+  curproc->etime = ticks;
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
@@ -628,5 +637,19 @@ waitx(int *wtime, int *rtime)
 int
 set_priority(int pid, int value)
 {
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+
+  for (p  = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pid == pid)
+    {
+      p->priority = value;
+      break;
+    }
+  }
+
+  release(&ptable.lock);
   return 24;
 }
